@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LibraIA | Lector Inteligente de PDFs con Inteligencia Artificial</title>
+  
+  <!-- Estilos principales -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Fuentes e Iconos -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Librerías Externas (CDNs) -->
+  <!-- PDF.js para procesar PDFs en el navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Marked para formatear respuestas Markdown de la IA -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Supabase JS Client para persistencia en backend -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <!-- Layout Principal -->
+  <div class="app-layout">
+    
+    <!-- Barra Lateral (Sidebar) -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <!-- Icono Geométrico Minimalista: Libra / Balanza -->
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v18"/>
+              <path d="M6 7l6-2 6 2"/>
+              <path d="M4 17l4-2 4 2"/>
+              <path d="M4 11l4 6"/>
+              <circle cx="8" cy="17" r="1"/>
+              <path d="M16 11l4 6"/>
+              <circle cx="18" cy="17" r="1"/>
+            </svg>
+          </div>
+          <div class="brand-info">
+            <span class="brand-name">LibraIA</span>
+            <span class="brand-tag">PDF & AI</span>
+          </div>
+        </div>
+        <button class="icon-btn mobile-only" id="closeSidebarBtn" title="Cerrar menú">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Acción Rápida: Cargar Documento -->
+      <div class="sidebar-actions">
+        <button class="btn btn-primary btn-block" id="newDocBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Nuevo Documento</span>
+        </button>
+        <input type="file" id="fileInput" accept="application/pdf" style="display:none;">
+      </div>
+
+      <!-- Historial de Documentos -->
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>Documentos Recientes</span>
+          <span class="badge badge-subtle" id="docCountBadge">0</span>
+        </div>
+        <div class="doc-list" id="docList">
+          <!-- Documentos cargados dinámicamente -->
+          <div class="empty-docs-state">
+            <p>No hay documentos cargados aún</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pie de Barra Lateral -->
+      <div class="sidebar-footer">
+        <div class="sidebar-user-box">
+          <button class="user-profile-btn" id="userProfileBtn" title="Cuenta de Usuario">
+            <div class="user-avatar" id="userAvatar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="user-info-text">
+              <span class="user-name" id="userNameLabel">Invitado</span>
+              <span class="user-sub" id="userSubLabel">Conectar</span>
+            </div>
+          </button>
+
+          <div class="sidebar-footer-actions">
+            <button class="icon-btn" id="themeToggleBtn" title="Alternar Modo Oscuro / Claro">
+              <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            </button>
+            <button class="icon-btn" id="openSettingsBtn" title="Configuraciones">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main class="main-content">
+      
+      <!-- Barra Superior de Navegación -->
+      <header class="top-nav">
+        <div class="nav-left">
+          <button class="icon-btn mobile-only" id="openSidebarBtn" title="Abrir menú">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          
+          <div class="doc-header-info" id="activeDocInfo" style="display: none;">
+            <div class="doc-icon-badge">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+            </div>
+            <div class="doc-details">
+              <span class="active-doc-title" id="activeDocTitle">documento.pdf</span>
+              <div class="active-doc-meta">
+                <span id="activeDocPages">0 páginas</span>
+                <span class="meta-separator">•</span>
+                <span id="activeDocWords">0 palabras</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="empty-header-title" id="emptyHeaderTitle">
+            <span>LibraIA</span>
+          </div>
+        </div>
+
+        <div class="nav-right">
+          <button class="btn btn-secondary btn-sm" id="viewPdfBtn" style="display: none;" title="Abrir u ocultar el visor visual de PDF">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span id="viewPdfBtnText">Ver PDF</span>
+          </button>
+          
+          <button class="btn btn-secondary btn-sm" id="exportChatBtn" style="display: none;" title="Exportar conversación">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Exportar</span>
+          </button>
+
+          <button class="icon-btn" id="clearChatBtn" style="display: none;" title="Limpiar conversación actual">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Zona de Vista de Inicio (Carga de PDF cuando no hay documento activo) -->
+      <section class="dropzone-container" id="dropzoneContainer">
+        <div class="dropzone-box" id="dropzoneBox">
+          <div class="dropzone-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <polyline points="9 15 12 12 15 15"></polyline>
+            </svg>
+          </div>
+          <h2>Arrastra tu PDF aquí</h2>
+          <p class="dropzone-sub">o haz clic para seleccionar un archivo desde tu equipo</p>
+          <button class="btn btn-primary" id="selectFileBtn">
+            <span>Seleccionar Archivo PDF</span>
+          </button>
+          
+          <div class="dropzone-specs">
+            <span>Procesamiento en navegador</span>
+            <span>•</span>
+            <span>Groq AI Ultrarrápido</span>
+            <span>•</span>
+            <span>Google Auth & Supabase</span>
+          </div>
+        </div>
+
+        <!-- Indicador de Carga / Progreso -->
+        <div class="progress-box" id="progressBox" style="display: none;">
+          <div class="spinner"></div>
+          <p id="progressText">Analizando y extrayendo texto del PDF...</p>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Tarjetas de Características -->
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </div>
+            <h3>Lectura Instantánea</h3>
+            <p>PDF.js extrae texto estructurado de cualquier documento PDF sin enviar tus archivos a servidores terceros.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <h3>Groq AI LPU</h3>
+            <p>Inferencia ultra veloz a cientos de tokens por segundo impulsada por los modelos de última generación en Groq.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <h3>Autenticación con Google</h3>
+            <p>Inicia sesión con tu cuenta de Google mediante Supabase para sincronizar tus lecturas y documentos en la nube.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Espacio de Trabajo Principal (Chat en el centro + Visor de PDF a la derecha) -->
+      <div class="workspace-layout" id="workspaceLayout" style="display: none;">
+        
+        <!-- Zona de Chat Interactivo (Centro) -->
+        <section class="chat-container" id="chatContainer">
+          
+          <!-- Lista de Mensajes -->
+          <div class="messages-list" id="messagesList">
+            <!-- Mensajes dinámicos -->
+          </div>
+
+          <!-- Sugerencias de Preguntas Rápidas -->
+          <div class="quick-prompts-bar" id="quickPromptsBar">
+            <button class="chip" data-prompt="Por favor, realiza un resumen ejecutivo detallado y estructurado de este documento.">
+              <span>📝 Resumen Ejecutivo</span>
+            </button>
+            <button class="chip" data-prompt="¿Cuáles son los 5 puntos clave y conclusiones más importantes de este documento?">
+              <span>🔍 5 Puntos Clave</span>
+            </button>
+            <button class="chip" data-prompt="Formula una lista de 4 preguntas y respuestas esenciales sobre el documento.">
+              <span>❓ Preguntas y Respuestas</span>
+            </button>
+            <button class="chip" data-prompt="Explica las ideas centrales de este documento como para un principiante de forma clara y amena.">
+              <span>💡 Explicar para Principiantes</span>
+            </button>
+            <button class="chip" data-prompt="Extrae todas las conclusiones, cifras y recomendaciones principales del documento.">
+              <span>📊 Conclusiones y Datos</span>
+            </button>
+          </div>
+
+          <!-- Área de Entrada de Mensaje -->
+          <div class="chat-input-wrapper">
+            <form class="chat-form" id="chatForm">
+              <textarea 
+                id="chatInput" 
+                placeholder="Haz una pregunta sobre el PDF (ej. ¿Qué dice en la página 1?)..." 
+                rows="1"
+                autocomplete="off"
+              ></textarea>
+              
+              <button type="submit" class="send-btn" id="sendBtn" title="Enviar mensaje">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <line x1="12" y1="19" x2="12" y2="5"></line>
+                  <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
+              </button>
+
+              <button type="button" class="stop-btn" id="stopBtn" style="display: none;" title="Detener generación">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+                </svg>
+              </button>
+            </form>
+            <div class="input-hint">
+              <span>Presiona <kbd>Enter</kbd> para enviar, <kbd>Shift+Enter</kbd> para salto de línea</span>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Panel del Visor de PDF (Lado Derecho) -->
+        <aside class="pdf-viewer-panel" id="pdfViewerPanel">
+          <div class="pdf-viewer-toolbar">
+            <div class="toolbar-group">
+              <button class="icon-btn-sm" id="pdfPrevPageBtn" title="Página anterior">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <div class="page-counter">
+                <span>Pág</span>
+                <input type="number" id="pdfPageInput" min="1" value="1">
+                <span>/</span>
+                <span id="pdfTotalPagesSpan">1</span>
+              </div>
+              <button class="icon-btn-sm" id="pdfNextPageBtn" title="Página siguiente">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+
+            <div class="toolbar-group">
+              <button class="icon-btn-sm" id="pdfZoomOutBtn" title="Reducir zoom (-)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+              <span class="zoom-badge" id="pdfZoomBadge">100%</span>
+              <button class="icon-btn-sm" id="pdfZoomInBtn" title="Aumentar zoom (+)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+              <button class="icon-btn-sm" id="pdfFitWidthBtn" title="Ajustar al ancho">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+              </button>
+              <button class="icon-btn-sm" id="closePdfPanelBtn" title="Ocultar visor">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Contenedor scrollable con las páginas visuales del PDF -->
+          <div class="pdf-pages-scroll" id="pdfPagesScroll">
+            <!-- Canvas de cada página inyectados dinámicamente -->
+          </div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Modal de Configuración -->
+  <div class="modal-backdrop" id="settingsModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h3>Configuraciones</h3>
+          <p>Credenciales de Groq AI y Backend con Supabase</p>
+        </div>
+        <button class="icon-btn" id="closeSettingsModalBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        
+        <!-- Sección Groq AI -->
+        <div class="config-section">
+          <h4>Groq AI (Inferencia Ultrarrápida)</h4>
+          <div class="form-group">
+            <label for="groqKeyInput">Groq API Key</label>
+            <div class="input-with-button">
+              <input type="password" id="groqKeyInput" placeholder="gsk_..." spellcheck="false">
+              <button type="button" class="btn btn-secondary btn-sm" id="toggleKeyVisibilityBtn">Mostrar</button>
+            </div>
+            <span class="field-hint">Inferencia instantánea con unidades de procesamiento de lenguaje LPU de Groq.</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="modelSelect">Modelo Groq</label>
+              <select id="modelSelect">
+                <option value="openai/gpt-oss-120b">GPT-OSS 120B (Recomendado - Razonamiento Avanzado)</option>
+                <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (Ultrarrápido y Preciso)</option>
+                <option value="openai/gpt-oss-20b">GPT-OSS 20B (Ligero y Eficiente)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="temperatureInput">Creatividad: <span id="tempValue">0.3</span></label>
+              <input type="range" id="temperatureInput" min="0" max="1" step="0.1" value="0.3">
+            </div>
+          </div>
+
+          <!-- Switch para Modo Simulación/Demostración -->
+          <div class="toggle-group">
+            <div class="toggle-info">
+              <span class="toggle-title">Modo Demostración Inteligente</span>
+              <span class="toggle-desc">Permite analizar tus PDFs localmente con el extractor contextual integrado sin realizar llamadas a la API.</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="mockModeToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Sección Supabase -->
+        <div class="config-section">
+          <h4>Supabase (Backend y Persistencia)</h4>
+          <div class="form-group">
+            <label for="supabaseUrlInput">Project URL</label>
+            <input type="text" id="supabaseUrlInput" placeholder="https://tu-proyecto.supabase.co" spellcheck="false">
+          </div>
+          <div class="form-group">
+            <label for="supabaseAnonKeyInput">Publishable / Anon API Key</label>
+            <input type="password" id="supabaseAnonKeyInput" placeholder="sb_publishable_... o eyJhbGciOi..." spellcheck="false">
+            <span class="field-hint">Encuéntrala en: Supabase Dashboard &gt; Settings &gt; API &gt; API Keys.</span>
+          </div>
+
+          <div class="supabase-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="testSupabaseBtn">
+              Probar Conexión con Supabase
+            </button>
+            <span class="connection-status-label" id="supabaseTestResult"></span>
+          </div>
+          <div class="sql-hint-box">
+            <span>💡 Las tablas <code>documents</code> y <code>messages</code> se sincronizan automáticamente con tu base de datos en Supabase.</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelSettingsBtn">Cancelar</button>
+        <button class="btn btn-primary" id="saveSettingsBtn">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Perfil de Usuario y Autenticación con Google -->
+  <div class="modal-backdrop" id="userProfileModal" style="display: none;">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h3>Mi Perfil</h3>
+          <p>Sincronización en la nube con Supabase</p>
+        </div>
+        <button class="icon-btn" id="closeProfileModalBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body profile-modal-body">
+        
+        <!-- Estado No Autenticado -->
+        <div id="unauthProfileView">
+          <div class="profile-avatar-large">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <h4 style="margin: 0 0 6px; text-align: center;">Inicia sesión con Google</h4>
+          <p style="font-size: 0.82rem; color: var(--text-secondary); text-align: center; margin-bottom: 20px;">
+            Conecta tu cuenta para sincronizar tus documentos leídos, chats y notas en tu base de datos Supabase desde cualquier dispositivo.
+          </p>
+
+          <button class="btn btn-block btn-google" id="loginGoogleBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <span>Continuar con Google</span>
+          </button>
+        </div>
+
+        <!-- Estado Autenticado -->
+        <div id="authProfileView" style="display: none;">
+          <div class="user-card-authenticated">
+            <img id="userProfilePicture" class="profile-pic-img" src="" alt="Avatar" style="display: none;">
+            <div id="userProfilePictureFallback" class="profile-avatar-large">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="profile-text-group">
+              <h4 id="profileDisplayName" style="margin: 0;">Usuario</h4>
+              <span id="profileEmail" style="font-size: 0.82rem; color: var(--text-muted);">correo@ejemplo.com</span>
+            </div>
+          </div>
+
+          <div class="profile-status-box">
+            <span class="dot dot-green"></span>
+            <span style="font-size: 0.8rem; color: var(--text-secondary);">Conectado con Google y Supabase</span>
+          </div>
+
+          <button class="btn btn-secondary btn-block" id="logoutBtn">
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Visor de Texto Extraído -->
+  <div class="modal-backdrop" id="textViewModal" style="display: none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h3 id="textViewDocTitle">Texto Extraído del PDF</h3>
+          <p id="textViewStats">Cargando...</p>
+        </div>
+        <button class="icon-btn" id="closeTextViewModalBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body text-view-body">
+        <div class="text-view-toolbar">
+          <input type="text" id="searchTextInDoc" placeholder="Buscar palabras en el texto extraído...">
+          <button class="btn btn-secondary btn-sm" id="copyExtractedTextBtn">Copiar Todo</button>
+        </div>
+        <div class="extracted-text-content" id="extractedTextContent">
+          <!-- Páginas del PDF -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Notificaciones -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Script Principal de la Aplicación -->
+  <script src="app.js"></script>
+</body>
+</html>
